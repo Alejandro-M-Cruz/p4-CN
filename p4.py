@@ -1,42 +1,18 @@
 import subprocess
-from time import sleep
-from typing import Sequence
 
-import boto3
+from cloud_formation import CloudFormationClient
 
-
-class CloudFormationClient:
-    def __init__(self):
-        self.client = boto3.client('cloudformation')
-
-    def create_stack(self, name: str, template: str):
-        self.client.create_stack(
-            StackName=name,
-            TemplateBody=template,
-            OnFailure='DELETE'
-        )
-
-    def create_stack_from_template_file(self, name: str, file_path: str):
-        with open(file_path) as file:
-            stack_template = file.read()
-        self.create_stack(name, stack_template)
-
-    def delete_stack(self, name: str):
-        self.client.delete_stack(StackName=name)
-
-    def stack_exists(self, name: str):
-        try:
-            self.client.describe_stacks(StackName=name)
-            return True
-        except self.client.exceptions.ClientError:
-            return False
+STACK_NAME = 'p4-stack'
+DEFAULT_STACK_TEMPLATE = 'fargate_ecs_stack.yaml'
+ECR_REPOSITORY_NAME = 'p4'
 
 
 def push_to_erc(project_path: str | None):
-    run_bash_command(['./push_to_erc.sh', project_path] if project_path else './push_to_erc.sh')
+    print('Pushing to ERC repository...')
+    run_bash_command(f"./push_to_erc.sh {ECR_REPOSITORY_NAME} {project_path or ''}")
 
 
-def run_bash_command(command: str | Sequence[str]):
+def run_bash_command(command: str):
     try:
         result = subprocess.check_output(
             command,
@@ -50,28 +26,26 @@ def run_bash_command(command: str | Sequence[str]):
         print(line.decode())
 
 
-def main(delete: bool, rebuild: bool):
+def main(**kwargs):
     cloud_formation_client = CloudFormationClient()
-    if delete:
-        cloud_formation_client.delete_stack('p4-stack')
+    cloud_formation_client.delete_stack(STACK_NAME, wait=True)
+    if kwargs['delete']:
         return
-    cloud_formation_client.create_stack_from_template_file('p4-stack', file_path='p4_stack.json')
-    print('Waiting for stack to be created...')
-    while not cloud_formation_client.stack_exists('p4-stack'):
-        sleep(1)
-    push_to_erc(project_path='server' if rebuild else None)
+    cloud_formation_client.create_stack_from_template_file(STACK_NAME, kwargs['template'], wait=True)
+    push_to_erc(project_path='server' if kwargs['rebuild'] else None)
 
 
 if __name__ == '__main__':
     import argparse
-
     parser = argparse.ArgumentParser(
         prog='p4.py',
-        description='Creates a CloudFormation stack that deploys a node server'
+        description='Creates a CloudFormation stack that deploys a node server via ECS'
     )
+    parser.add_argument('-t', '--template', default=DEFAULT_STACK_TEMPLATE,
+                        help=f'Path to the CloudFormation template (default: {DEFAULT_STACK_TEMPLATE})')
     parser.add_argument('-d', '--delete', action='store_true',
-                        help='Whether to delete the stack (default: False)')
+                        help='Whether to delete the stack and exit (default: False)')
     parser.add_argument('-r', '--rebuild', action='store_true',
-                        help='Whether to rebuild the Docker image (default: False)')
+                        help='Whether to rebuild the container image (default: False)')
     args = parser.parse_args()
-    main(args.delete, args.rebuild)
+    main(**args.__dict__)

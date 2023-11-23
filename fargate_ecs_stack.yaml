@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+    P4Repository:
+        Type: AWS::ECR::Repository
+        Properties:
+            EmptyOnDelete: true
+            RepositoryName: p4
+    P4Cluster:
+        Type: AWS::ECS::Cluster
+        Properties:
+            ClusterName: p4
+            CapacityProviders:
+                - FARGATE
+                - FARGATE_SPOT
+#    P4ServerTask:
+#        Type: AWS::ECS::TaskDefinition
+#        Properties:
+#            ContainerDefinitions:
+#                - ContainerDefinition
+#            Cpu: String
+#            EphemeralStorage:
+#                EphemeralStorage
+#            ExecutionRoleArn: String
+#            Family: String
+#            InferenceAccelerators:
+#                - InferenceAccelerator
+#            IpcMode: String
+#            Memory: String
+#            NetworkMode: String
+#            PidMode: String
+#            PlacementConstraints:
+#                - TaskDefinitionPlacementConstraint
+#            ProxyConfiguration:
+#                ProxyConfiguration
+#            RequiresCompatibilities:
+#                - String
+#            RuntimePlatform:
+#                RuntimePlatform
+#            Tags:
+#                - Tag
+#            TaskRoleArn: String
+#            Volumes:
+#                - Volume
