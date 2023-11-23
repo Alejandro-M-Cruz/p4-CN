@@ -1,0 +1,35 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "webserver": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "LaunchTemplate": {
+                    "LaunchTemplateId": "lt-0efef330471760022",
+                    "Version": "5"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "WebServerFromStack"
+                    }
+                ]
+            }
+        },
+        "sshgate": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "LaunchTemplate": {
+                    "LaunchTemplateId": "lt-019ad55938ac9fedd",
+                    "Version": "4"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "SSHGateFromStack"
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -1,0 +1,132 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Resources": {
+        "WebServer1": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "LaunchTemplate": {
+                    "LaunchTemplateId": "lt-0efef330471760022",
+                    "Version": "5"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "WebServer1"
+                    }
+                ]
+            }
+        },
+        "WebServer2": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "LaunchTemplate": {
+                    "LaunchTemplateId": "lt-0efef330471760022",
+                    "Version": "5"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "WebServer2"
+                    }
+                ]
+            }
+        },
+        "WebServersLoadBalancer": {
+            "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties": {
+                "IpAddressType": "ipv4",
+                "Name": "WebServersLoadBalancer",
+                "Scheme": "internet-facing",
+                "SecurityGroups": [
+                    "sg-09e18967b01cc2416"
+                ],
+                "Subnets": [
+                    "subnet-00f75e8296c3061d1",
+                    "subnet-02330bc7e36c9a3ab"
+                ],
+                "Type": "application"
+            }
+        },
+        "WebServersTargetGroup": {
+            "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties": {
+                "HealthCheckEnabled": true,
+                "HealthCheckIntervalSeconds": 30,
+                "HealthCheckPath": "/",
+                "HealthCheckPort": "traffic-port",
+                "HealthCheckProtocol": "HTTP",
+                "HealthCheckTimeoutSeconds": 5,
+                "HealthyThresholdCount": 2,
+                "IpAddressType": "ipv4",
+                "Name": "WebServersTargetGroup",
+                "Port": 80,
+                "Protocol": "HTTP",
+                "ProtocolVersion": "HTTP1",
+                "Targets": [
+                    {
+                        "Id": {
+                            "Ref": "WebServer1"
+                        },
+                        "Port": 80
+                    },
+                    {
+                        "Id": {
+                            "Ref": "WebServer2"
+                        },
+                        "Port": 80
+                    }
+                ],
+                "TargetType": "instance",
+                "VpcId": "vpc-02ecbecc4574f6c99"
+            }
+        },
+        "LoadBalancerHttpListener": {
+            "Type": "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties": {
+                "DefaultActions": [
+                    {
+                        "TargetGroupArn": {
+                            "Fn::GetAtt": [
+                                "WebServersTargetGroup",
+                                "TargetGroupArn"
+                            ]
+                        },
+                        "Type": "forward"
+                    }
+                ],
+                "LoadBalancerArn": {
+                    "Fn::GetAtt": [
+                        "WebServersLoadBalancer",
+                        "LoadBalancerArn"
+                    ]
+                },
+                "Port": 80,
+                "Protocol": "HTTP"
+            }
+        },
+        "WebServersAutoScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "AutoScalingGroupName": "WebServersAutoScalingGroup",
+                "AvailabilityZones": [
+                    "us-east-1d"
+                ],
+                "DesiredCapacity": "1",
+                "LaunchTemplate": {
+                    "LaunchTemplateId": "lt-0efef330471760022",
+                    "Version": "5"
+                },
+                "MaxSize": "2",
+                "MinSize": "1",
+                "TargetGroupARNs": [
+                    {
+                        "Fn::GetAtt": [
+                            "WebServersTargetGroup",
+                            "TargetGroupArn"
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}
