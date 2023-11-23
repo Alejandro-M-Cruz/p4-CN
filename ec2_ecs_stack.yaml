@@ -8,36 +8,29 @@ Resources:
     P4Cluster:
         Type: AWS::ECS::Cluster
         Properties:
-            ClusterName: p4
-            CapacityProviders:
-                - FARGATE
-                - FARGATE_SPOT
+            ClusterName: P4Cluster
     P4ServerTask:
         Type: AWS::ECS::TaskDefinition
         Properties:
             ContainerDefinitions:
-                - ContainerDefinition
-            Cpu: String
-            EphemeralStorage:
-                EphemeralStorage
-            ExecutionRoleArn: String
-            Family: String
-            InferenceAccelerators:
-                - InferenceAccelerator
-            IpcMode: String
-            Memory: String
-            NetworkMode: String
-            PidMode: String
-            PlacementConstraints:
-                - TaskDefinitionPlacementConstraint
-            ProxyConfiguration:
-                ProxyConfiguration
+                - Name: P4Container
+                  Image: !GetAtt P4Repository.RepositoryUri
+                  PortMappings:
+                    - ContainerPort: 3000
+                      HostPort: 80
+                      AppProtocol: http
+            Cpu: 512
+            Memory: 1024
+            NetworkMode: awsvpc
             RequiresCompatibilities:
-                - String
-            RuntimePlatform:
-                RuntimePlatform
-            Tags:
-                - Tag
-            TaskRoleArn: String
-            Volumes:
-                - Volume
+                - FARGATE
+    P4Service:
+        Type: AWS::ECS::Service
+        Properties:
+            Cluster: !Ref P4Cluster
+            DesiredCount: 1
+            LaunchType: FARGATE
+            NetworkConfiguration:
+                AwsvpcConfiguration:
+                    AssignPublicIp: ENABLED
+            TaskDefinition: !Ref P4ServerTask

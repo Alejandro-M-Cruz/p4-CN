@@ -15,12 +15,7 @@ def push_to_erc(project_path: str | None):
 
 def run_bash_command(command: str):
     try:
-        result = subprocess.check_output(
-            command,
-            shell=True,
-            executable='/bin/bash',
-            stderr=subprocess.STDOUT
-        )
+        result = subprocess.check_output(command, shell=True, executable='/bin/bash', stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         result = e.output
     for line in result.splitlines():
