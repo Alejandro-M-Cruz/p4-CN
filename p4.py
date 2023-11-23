@@ -1,11 +1,8 @@
-import sys
-from datetime import datetime
+import subprocess
+from pprint import pprint
+from typing import Sequence
 
 import boto3
-
-
-def name_with_datetime(name: str):
-    return f"{name}-{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
 
 
 def create_cloud_formation_stack(stack_name: str, stack_template: str):
@@ -17,23 +14,26 @@ def create_cloud_formation_stack(stack_name: str, stack_template: str):
     )
 
 
+def push_to_erc(project_path: str):
+    run_bash_command(['./push_to_erc.sh', project_path])
+
+
+def run_bash_command(command: str | Sequence[str]):
+    try:
+        result = subprocess.check_output(
+            command,
+            shell=True,
+            executable='/bin/bash',
+            stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError as e:
+        result = e.output
+    pprint(result.decode())
 
 
 if __name__ == '__main__':
-    match len(argv := sys.argv):
-        case argc if argc <= 1:
-            stack_template_path = 'stack2.json'
-            stack_name = name_with_datetime('stack2')
-        case argc if argc == 2:
-            raise TypeError(
-                'Invalid number of arguments. '
-                'Usage: python p4.py <stack_template_path> <stack_name>'
-            )
-        case _:
-            stack_template_path = argv[1]
-            stack_name = name_with_datetime(argv[2])
-
-    with open(stack_template_path) as file:
+    with open('p4_stack.json') as file:
         stack_template = file.read()
+    create_cloud_formation_stack('p4-stack', stack_template)
+    push_to_erc('server')
 
-    create_cloud_formation_stack(stack_name, stack_template)
