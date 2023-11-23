@@ -32,7 +32,7 @@ def main(**kwargs):
     if kwargs['delete']:
         return
     cloud_formation_client.create_stack_from_template_file(STACK_NAME, kwargs['template'], wait=True)
-    push_to_erc(project_path='server' if kwargs['rebuild'] else None)
+    push_to_erc(project_path=kwargs['project_path'] if kwargs['rebuild'] else None)
 
 
 if __name__ == '__main__':
@@ -45,6 +45,8 @@ if __name__ == '__main__':
                         help=f'Path to the CloudFormation template (default: {DEFAULT_STACK_TEMPLATE})')
     parser.add_argument('-d', '--delete', action='store_true',
                         help='Whether to delete the stack and exit (default: False)')
+    parser.add_argument('-p', '--project-path', default='server',
+                        help='Path to the directory containing the Dockerfile (default: server)')
     parser.add_argument('-r', '--rebuild', action='store_true',
                         help='Whether to rebuild the container image (default: False)')
     args = parser.parse_args()
