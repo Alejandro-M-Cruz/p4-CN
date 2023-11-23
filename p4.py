@@ -5,6 +5,7 @@ from cloud_formation import CloudFormationClient
 STACK_NAME = 'p4-stack'
 DEFAULT_STACK_TEMPLATE = 'fargate_ecs_stack.yaml'
 ECR_REPOSITORY_NAME = 'p4'
+DEFAULT_PROJECT_PATH = 'server'
 
 
 def push_to_erc(project_path: str | None):
@@ -45,8 +46,8 @@ if __name__ == '__main__':
                         help=f'Path to the CloudFormation template (default: {DEFAULT_STACK_TEMPLATE})')
     parser.add_argument('-d', '--delete', action='store_true',
                         help='Whether to delete the stack and exit (default: False)')
-    parser.add_argument('-p', '--project-path', default='server',
-                        help='Path to the directory containing the Dockerfile (default: server)')
+    parser.add_argument('-p', '--project-path', default=DEFAULT_PROJECT_PATH,
+                        help=f'Path to the directory containing the Dockerfile (default: {DEFAULT_PROJECT_PATH})')
     parser.add_argument('-r', '--rebuild', action='store_true',
                         help='Whether to rebuild the container image (default: False)')
     args = parser.parse_args()
