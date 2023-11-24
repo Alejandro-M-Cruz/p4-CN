@@ -1,5 +1,27 @@
 AWSTemplateFormatVersion: 2010-09-09
 Resources:
+    MyECSTaskExecutionRole:
+        Type: AWS::IAM::Role
+        Properties:
+            RoleName: MyECSTaskExecutionRole
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    -   Effect: Allow
+                        Principal:
+                            Service:
+                                - ecs-tasks.amazonaws.com
+                        Action:
+                            - sts:AssumeRole
+            Policies:
+                -   PolicyName: ECSTaskExecutionPolicy
+                    Resource: "*"
+                    PolicyDocument:
+                        Version: 2012-10-17
+                        Statement:
+                            -   Effect: Allow
+                                Action:
+                                    - "ecs:*"
     P4Repository:
         Type: AWS::ECR::Repository
         Properties:
@@ -13,15 +35,15 @@ Resources:
         Type: AWS::ECS::TaskDefinition
         Properties:
             ContainerDefinitions:
-                - Name: P4Container
-                  Image: !GetAtt P4Repository.RepositoryUri
-                  PortMappings:
-                    - ContainerPort: 80
-                      HostPort: 80
-                      AppProtocol: http
+                -   Name: P4Container
+                    Image: !GetAtt P4Repository.RepositoryUri
+                    PortMappings:
+                        -   ContainerPort: 80
+                            HostPort: 80
+                            AppProtocol: http
             Cpu: 512
             Memory: 1024
-            TaskRoleArn: arn:aws:iam::989870301024:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS
+            TaskRoleArn: !GetAtt MyECSTaskExecutionRole.Arn
             NetworkMode: awsvpc
             RequiresCompatibilities:
                 - FARGATE
