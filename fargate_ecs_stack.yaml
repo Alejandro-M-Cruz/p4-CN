@@ -1,49 +1,29 @@
 AWSTemplateFormatVersion: 2010-09-09
 Resources:
-    MyECSTaskExecutionRole:
-        Type: AWS::IAM::Role
-        Properties:
-            RoleName: MyECSTaskExecutionRole
-            AssumeRolePolicyDocument:
-                Version: 2012-10-17
-                Statement:
-                    -   Effect: Allow
-                        Principal:
-                            Service:
-                                - ecs-tasks.amazonaws.com
-                        Action:
-                            - sts:AssumeRole
-            Policies:
-                -   PolicyName: ECSTaskExecutionPolicy
-                    Resource: "*"
-                    PolicyDocument:
-                        Version: 2012-10-17
-                        Statement:
-                            -   Effect: Allow
-                                Action:
-                                    - "ecs:*"
-    P4Repository:
-        Type: AWS::ECR::Repository
-        Properties:
-            EmptyOnDelete: true
-            RepositoryName: p4
+    #    P4Repository:
+    #        Type: AWS::ECR::Repository
+    #        Properties:
+    #            EmptyOnDelete: true
+    #            RepositoryName: p4
     P4Cluster:
         Type: AWS::ECS::Cluster
         Properties:
-            ClusterName: P4Cluster
+            ClusterName: P4FargateCluster
     P4ServerTask:
         Type: AWS::ECS::TaskDefinition
         Properties:
+            Family: P4FargateTask
             ContainerDefinitions:
                 -   Name: P4Container
-                    Image: !GetAtt P4Repository.RepositoryUri
+                    Image: {{image}}
                     PortMappings:
                         -   ContainerPort: 80
                             HostPort: 80
-                            AppProtocol: http
-            Cpu: 512
-            Memory: 1024
-            TaskRoleArn: !GetAtt MyECSTaskExecutionRole.Arn
+                            Protocol: http
+            Cpu: 1024
+            Memory: 3072
+            TaskRoleArn: arn:aws:iam::989870301024:role/LabRole
+            ExecutionRoleArn: arn:aws:iam::989870301024:role/LabRole
             NetworkMode: awsvpc
             RequiresCompatibilities:
                 - FARGATE
@@ -56,4 +36,8 @@ Resources:
             NetworkConfiguration:
                 AwsvpcConfiguration:
                     AssignPublicIp: ENABLED
+                    Subnets:
+                        - subnet-00f75e8296c3061d1
+                    SecurityGroups:
+                        - sg-09e18967b01cc2416
             TaskDefinition: !Ref P4ServerTask

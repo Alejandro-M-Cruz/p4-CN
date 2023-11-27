@@ -1,6 +1,7 @@
 import subprocess
 
-from cloud_formation import CloudFormationClient
+from cloud_formation_client import CloudFormationClient
+from ecr_client import EcrClient
 
 STACK_NAME = 'p4-stack'
 DEFAULT_STACK_TEMPLATE = 'fargate_ecs_stack.yaml'
@@ -9,7 +10,7 @@ DEFAULT_PROJECT_PATH = 'server'
 
 
 def push_to_erc(project_path: str | None):
-    print('Pushing to ERC repository...')
+    print('Pushing to ECR repository...')
     run_bash_command(f"./push_to_erc.sh {ECR_REPOSITORY_NAME} {project_path or ''}")
 
 
@@ -27,8 +28,17 @@ def main(**kwargs):
     cloud_formation_client.delete_stack(STACK_NAME, wait=True)
     if kwargs['delete']:
         return
-    cloud_formation_client.create_stack_from_template_file(STACK_NAME, kwargs['template'], wait=True)
-    push_to_erc(project_path=kwargs['project_path'] if kwargs['rebuild'] else None)
+    ecr = EcrClient()
+    if kwargs['create_repository']:
+        ecr.delete_repository(ECR_REPOSITORY_NAME, wait=True)
+        ecr.create_repository(ECR_REPOSITORY_NAME, wait=True)
+        push_to_erc(project_path=kwargs['project_path'] if kwargs['rebuild'] else None)
+    cloud_formation_client.create_stack_from_template_file(
+        name=STACK_NAME,
+        template_path=kwargs['template'],
+        template_params={'image': f'{ecr.get_repository_uri(ECR_REPOSITORY_NAME)}:latest'},
+        wait=True
+    )
 
 
 if __name__ == '__main__':
@@ -43,6 +53,8 @@ if __name__ == '__main__':
                         help='Whether to delete the stack and exit (default: False)')
     parser.add_argument('-p', '--project-path', default=DEFAULT_PROJECT_PATH,
                         help=f'Path to the directory containing the Dockerfile (default: {DEFAULT_PROJECT_PATH})')
+    parser.add_argument('-c', '--create-repository', action='store_true',
+                        help='Whether to create the ECR repository (default: False)')
     parser.add_argument('-r', '--rebuild', action='store_true',
                         help='Whether to rebuild the container image (default: False)')
     args = parser.parse_args()

@@ -9,28 +9,47 @@ Resources:
         Type: AWS::ECS::Cluster
         Properties:
             ClusterName: P4Cluster
+    P4Instance:
+        Type: AWS::EC2::Instance
+        Properties:
+            ImageId: ami-0230bd60aa48260c6
+            InstanceType: t2.micro
+            KeyName: Web_server
+            SecurityGroupIds:
+                - sg-09e18967b01cc2416
+            SubnetId: subnet-00f75e8296c3061d1
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash
+                    echo "ECS_CLUSTER=${P4Cluster}" >> /etc/ecs/ecs.config
+            Tags:
+                -   Key: Name
+                    Value: P4Instance
     P4ServerTask:
         Type: AWS::ECS::TaskDefinition
         Properties:
             ContainerDefinitions:
-                - Name: P4Container
-                  Image: !GetAtt P4Repository.RepositoryUri
-                  PortMappings:
-                    - ContainerPort: 3000
-                      HostPort: 80
-                      AppProtocol: http
+                -   Name: P4Container
+                    Image: !GetAtt P4Repository.RepositoryUri
+                    PortMappings:
+                        -   ContainerPort: 80
+                            HostPort: 80
+                            AppProtocol: http
             Cpu: 512
             Memory: 1024
+            TaskRoleArn: arn:aws:iam::989870301024:role/LabRole
+            ExecutionRoleArn: arn:aws:iam::989870301024:role/LabRole
             NetworkMode: awsvpc
             RequiresCompatibilities:
-                - FARGATE
+                - EC2
     P4Service:
         Type: AWS::ECS::Service
         Properties:
             Cluster: !Ref P4Cluster
             DesiredCount: 1
-            LaunchType: FARGATE
+            LaunchType: EC2
             NetworkConfiguration:
                 AwsvpcConfiguration:
-                    AssignPublicIp: ENABLED
+                    Subnets:
+                        - subnet-00f75e8296c3061d1
             TaskDefinition: !Ref P4ServerTask
