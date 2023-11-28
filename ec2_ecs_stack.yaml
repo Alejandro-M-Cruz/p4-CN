@@ -1,55 +1,87 @@
 AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+    Image:
+        Type: String
+        Description: The image to deploy
 Resources:
-    P4Repository:
-        Type: AWS::ECR::Repository
+    P4Ec2SecurityGroup:
+        Type: AWS::EC2::SecurityGroup
         Properties:
-            EmptyOnDelete: true
-            RepositoryName: p4
-    P4Cluster:
+            GroupName: P4Ec2SecurityGroup
+            GroupDescription: Enable SSH and HTTP traffic
+            SecurityGroupIngress:
+                -   CidrIp: 0.0.0.0/0
+                    IpProtocol: tcp
+                    FromPort: 22
+                    ToPort: 22
+                -   CidrIp: 0.0.0.0/0
+                    IpProtocol: tcp
+                    FromPort: 80
+                    ToPort: 80
+    P4Ec2Cluster:
         Type: AWS::ECS::Cluster
         Properties:
-            ClusterName: P4Cluster
-    P4Instance:
+            ClusterName: P4Ec2Cluster
+    P4Ec2Instance:
         Type: AWS::EC2::Instance
         Properties:
             ImageId: ami-0230bd60aa48260c6
             InstanceType: t2.micro
             KeyName: Web_server
             SecurityGroupIds:
-                - sg-09e18967b01cc2416
-            SubnetId: subnet-00f75e8296c3061d1
+                - !GetAtt P4Ec2SecurityGroup.GroupId
             UserData:
-                Fn::Base64: !Sub |
+                Fn::Base64: |
                     #!/bin/bash
-                    echo "ECS_CLUSTER=${P4Cluster}" >> /etc/ecs/ecs.config
+                    echo "ECS_CLUSTER=P4Ec2Cluster" >> /etc/ecs/ecs.config
             Tags:
                 -   Key: Name
-                    Value: P4Instance
-    P4ServerTask:
+                    Value: P4Ec2Instance
+    P4Ec2TargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            Name: P4Ec2TargetGroup
+            Port: 80
+            Protocol: HTTP
+            VpcId: vpc-02ecbecc4574f6c99
+            TargetType: instance
+            Targets:
+                -   Id: !Ref P4Ec2Instance
+                    Port: 80
+    P4Ec2Task:
         Type: AWS::ECS::TaskDefinition
         Properties:
+            Family: P4Ec2Task
             ContainerDefinitions:
                 -   Name: P4Container
-                    Image: !GetAtt P4Repository.RepositoryUri
+                    Image: !Ref Image
                     PortMappings:
                         -   ContainerPort: 80
                             HostPort: 80
-                            AppProtocol: http
-            Cpu: 512
-            Memory: 1024
+                            Protocol: http
+            Cpu: 1024
+            Memory: 3072
             TaskRoleArn: arn:aws:iam::989870301024:role/LabRole
             ExecutionRoleArn: arn:aws:iam::989870301024:role/LabRole
             NetworkMode: awsvpc
             RequiresCompatibilities:
                 - EC2
-    P4Service:
+    P4Ec2Service:
         Type: AWS::ECS::Service
+        DependsOn: P4Ec2Instance
         Properties:
-            Cluster: !Ref P4Cluster
+            Cluster: !Ref P4Ec2Cluster
             DesiredCount: 1
             LaunchType: EC2
             NetworkConfiguration:
                 AwsvpcConfiguration:
                     Subnets:
                         - subnet-00f75e8296c3061d1
-            TaskDefinition: !Ref P4ServerTask
+                    SecurityGroups:
+                        - !GetAtt P4Ec2SecurityGroup.GroupId
+            TaskDefinition: !Ref P4Ec2Task
+            LoadBalancers:
+                - ContainerName: P4Container
+                  ContainerPort: 80
+                  TargetGroupArn: !GetAtt P4Ec2TargetGroup.TargetGroupArn
+                  LoadBalancerName: P4Ec2LoadBalancer

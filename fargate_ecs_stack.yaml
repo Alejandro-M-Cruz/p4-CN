@@ -1,21 +1,34 @@
 AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+    Image:
+        Type: String
+        Description: The image to deploy
 Resources:
-    #    P4Repository:
-    #        Type: AWS::ECR::Repository
-    #        Properties:
-    #            EmptyOnDelete: true
-    #            RepositoryName: p4
-    P4Cluster:
+    P4FargateSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupName: P4FargateSecurityGroup
+            GroupDescription: Enable SSH and HTTP traffic
+            SecurityGroupIngress:
+                -   CidrIp: 0.0.0.0/0
+                    IpProtocol: tcp
+                    FromPort: 22
+                    ToPort: 22
+                -   CidrIp: 0.0.0.0/0
+                    IpProtocol: tcp
+                    FromPort: 80
+                    ToPort: 80
+    P4FargateCluster:
         Type: AWS::ECS::Cluster
         Properties:
             ClusterName: P4FargateCluster
-    P4ServerTask:
+    P4FargateTask:
         Type: AWS::ECS::TaskDefinition
         Properties:
             Family: P4FargateTask
             ContainerDefinitions:
                 -   Name: P4Container
-                    Image: {{image}}
+                    Image: !Ref Image
                     PortMappings:
                         -   ContainerPort: 80
                             HostPort: 80
@@ -27,10 +40,10 @@ Resources:
             NetworkMode: awsvpc
             RequiresCompatibilities:
                 - FARGATE
-    P4Service:
+    P4FargateService:
         Type: AWS::ECS::Service
         Properties:
-            Cluster: !Ref P4Cluster
+            Cluster: !Ref P4FargateCluster
             DesiredCount: 1
             LaunchType: FARGATE
             NetworkConfiguration:
@@ -39,5 +52,5 @@ Resources:
                     Subnets:
                         - subnet-00f75e8296c3061d1
                     SecurityGroups:
-                        - sg-09e18967b01cc2416
-            TaskDefinition: !Ref P4ServerTask
+                        - !GetAtt P4FargateSecurityGroup.GroupId
+            TaskDefinition: !Ref P4FargateTask
