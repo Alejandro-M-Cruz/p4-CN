@@ -37,6 +37,17 @@ Resources:
             Tags:
                 -   Key: Name
                     Value: P4Ec2Instance
+    P4Ec2LoadBalancer:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Name: P4Ec2LoadBalancer
+            IpAddressType: ipv4
+            Scheme: internet-facing
+            Subnets:
+                - subnet-00f75e8296c3061d1
+                - subnet-02330bc7e36c9a3ab
+            SecurityGroups:
+                - !GetAtt P4Ec2SecurityGroup.GroupId
     P4Ec2TargetGroup:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
@@ -48,6 +59,15 @@ Resources:
             Targets:
                 -   Id: !Ref P4Ec2Instance
                     Port: 80
+    P4Ec2Listener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            LoadBalancerArn: !Ref P4Ec2LoadBalancer
+            Port: 80
+            Protocol: HTTP
+            DefaultActions:
+                -   Type: forward
+                    TargetGroupArn: !GetAtt P4Ec2TargetGroup.TargetGroupArn
     P4Ec2Task:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -63,12 +83,11 @@ Resources:
             Memory: 3072
             TaskRoleArn: arn:aws:iam::989870301024:role/LabRole
             ExecutionRoleArn: arn:aws:iam::989870301024:role/LabRole
-            NetworkMode: awsvpc
             RequiresCompatibilities:
                 - EC2
     P4Ec2Service:
         Type: AWS::ECS::Service
-        DependsOn: P4Ec2Instance
+        DependsOn: P4Ec2LoadBalancer
         Properties:
             Cluster: !Ref P4Ec2Cluster
             DesiredCount: 1
@@ -83,5 +102,4 @@ Resources:
             LoadBalancers:
                 - ContainerName: P4Container
                   ContainerPort: 80
-                  TargetGroupArn: !GetAtt P4Ec2TargetGroup.TargetGroupArn
-                  LoadBalancerName: P4Ec2LoadBalancer
+                  LoadBalancerName: !GetAtt P4Ec2LoadBalancer.LoadBalancerName
