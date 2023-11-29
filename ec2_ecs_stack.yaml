@@ -8,31 +8,86 @@ Resources:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupName: P4Ec2SecurityGroup
-            GroupDescription: Enable SSH and HTTP traffic
+            GroupDescription: Default security group
             SecurityGroupIngress:
                 -   CidrIp: 0.0.0.0/0
-                    IpProtocol: '-1'
-                    FromPort: -1
-                    ToPort: -1
+                    IpProtocol: tcp
+                    FromPort: 22
+                    ToPort: 22
+                -   CidrIp: 0.0.0.0/0
+                    IpProtocol: tcp
+                    FromPort: 80
+                    ToPort: 80
+            VpcId: vpc-02ecbecc4574f6c99
+    P4Ec2LaunchTemplate:
+        Type: AWS::EC2::LaunchTemplate
+        Properties:
+            LaunchTemplateName: P4Ec2LaunchTemplate
+            LaunchTemplateData:
+                ImageId: ami-0b74aeb97fba885ea
+                InstanceType: m5.large
+                IamInstanceProfile:
+                    Arn: arn:aws:iam::989870301024:instance-profile/LabInstanceProfile
+                SecurityGroupIds:
+                    - !GetAtt P4Ec2SecurityGroup.GroupId
+                BlockDeviceMappings:
+                    -   DeviceName: /dev/xvda
+                        Ebs:
+                            VolumeSize: 30
+                            VolumeType: gp2
+                            DeleteOnTermination: true
+                UserData:
+                    Fn::Base64: !Sub |
+                        #!/bin/bash
+                        echo "ECS_CLUSTER=${P4Ec2Cluster}" >> /etc/ecs/ecs.config
+    P4Ec2AutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            AutoScalingGroupName: P4Ec2AutoScalingGroup
+            LaunchTemplate:
+                LaunchTemplateId: !Ref P4Ec2LaunchTemplate
+                Version: !GetAtt P4Ec2LaunchTemplate.LatestVersionNumber
+            MinSize: 1
+            MaxSize: 1
+            DesiredCapacity: 1
+            NewInstancesProtectedFromScaleIn: false
+            VPCZoneIdentifier:
+                - subnet-00f75e8296c3061d1
+    P4Ec2CapacityProvider:
+        Type: AWS::ECS::CapacityProvider
+        Properties:
+            Name: P4Ec2CapacityProvider
+            AutoScalingGroupProvider:
+                AutoScalingGroupArn: !Ref P4Ec2AutoScalingGroup
+                ManagedTerminationProtection: DISABLED
+                ManagedScaling:
+                    MaximumScalingStepSize: 1
+                    MinimumScalingStepSize: 1
+                    TargetCapacity: 100
+                    InstanceWarmupPeriod: 60
+                    Status: ENABLED
     P4Ec2Cluster:
         Type: AWS::ECS::Cluster
         Properties:
             ClusterName: P4Ec2Cluster
-    P4Ec2Instance:
-        Type: AWS::EC2::Instance
+            ClusterSettings:
+                -   Name: containerInsights
+                    Value: enabled
+    P4Ec2ClusterCapacityProviderAssociations:
+        Type: AWS::ECS::ClusterCapacityProviderAssociations
         Properties:
-            ImageId: ami-0230bd60aa48260c6
-            InstanceType: t2.micro
-            KeyName: Web_server
-            SecurityGroupIds:
-                - !GetAtt P4Ec2SecurityGroup.GroupId
-            UserData:
-                Fn::Base64: |
-                    #!/bin/bash
-                    echo "ECS_CLUSTER=P4Ec2Cluster" >> /etc/ecs/ecs.config
-            Tags:
-                -   Key: Name
-                    Value: P4Ec2Instance
+            CapacityProviders:
+                - !Ref P4Ec2CapacityProvider
+            Cluster: !Ref P4Ec2Cluster
+            DefaultCapacityProviderStrategy:
+                -   Base: 0
+                    CapacityProvider: !Ref P4Ec2CapacityProvider
+                    Weight: 1
+    P4Ec2TaskLogGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: /ecs/P4Ec2Task
+            RetentionInDays: 7
     P4Ec2Task:
         Type: AWS::ECS::TaskDefinition
         Properties:
@@ -44,10 +99,17 @@ Resources:
                         -   ContainerPort: 80
                             HostPort: 80
                             Protocol: http
+                    LogConfiguration:
+                        LogDriver: awslogs
+                        Options:
+                            awslogs-group: !Ref P4Ec2TaskLogGroup
+                            awslogs-region: us-east-1
+                            awslogs-stream-prefix: ecs
             Cpu: 1024
             Memory: 3072
             TaskRoleArn: arn:aws:iam::989870301024:role/LabRole
             ExecutionRoleArn: arn:aws:iam::989870301024:role/LabRole
+            NetworkMode: host
             RequiresCompatibilities:
                 - EC2
     P4Ec2Service:
@@ -55,5 +117,7 @@ Resources:
         Properties:
             Cluster: !Ref P4Ec2Cluster
             DesiredCount: 1
-            LaunchType: EC2
             TaskDefinition: !Ref P4Ec2Task
+            CapacityProviderStrategy:
+                -   CapacityProvider: !Ref P4Ec2CapacityProvider
+                    Weight: 1
