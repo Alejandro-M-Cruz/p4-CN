@@ -8,7 +8,7 @@ Resources:
         Type: AWS::EC2::SecurityGroup
         Properties:
             GroupName: P4FargateSecurityGroup
-            GroupDescription: Enable SSH and HTTP traffic
+            GroupDescription: Allows SSH and HTTP traffic
             SecurityGroupIngress:
                 -   CidrIp: 0.0.0.0/0
                     IpProtocol: tcp
